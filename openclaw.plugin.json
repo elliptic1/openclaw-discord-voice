@@ -1,0 +1,73 @@
+{
+  "id": "discord-voice",
+  "name": "Discord Voice",
+  "description": "Voice conversations in Discord voice channels using OpenAI Realtime API",
+  "version": "0.1.0",
+  "uiHints": {
+    "openaiApiKey": {
+      "label": "OpenAI API Key",
+      "sensitive": true,
+      "help": "Required for Realtime API. Falls back to providers.openai.apiKey if not set."
+    },
+    "model": {
+      "label": "Realtime Model",
+      "help": "OpenAI Realtime model to use"
+    },
+    "voice": {
+      "label": "AI Voice",
+      "help": "Voice for AI responses (alloy, echo, fable, onyx, nova, shimmer)"
+    },
+    "vadThreshold": {
+      "label": "VAD Threshold",
+      "help": "Voice activity detection sensitivity (0-1)"
+    },
+    "systemPrompt": {
+      "label": "System Prompt",
+      "help": "Custom personality/instructions for voice AI"
+    },
+    "autoJoin": {
+      "label": "Auto-Join",
+      "help": "Automatically join voice channel when user joins"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "openaiApiKey": {
+        "type": "string"
+      },
+      "model": {
+        "type": "string",
+        "default": "gpt-4o-realtime-preview-2024-12-17"
+      },
+      "voice": {
+        "type": "string",
+        "enum": ["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
+        "default": "alloy"
+      },
+      "vadThreshold": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5
+      },
+      "systemPrompt": {
+        "type": "string"
+      },
+      "autoJoin": {
+        "type": "boolean",
+        "default": false
+      },
+      "maxConcurrentConnections": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 5
+      }
+    }
+  }
+}
