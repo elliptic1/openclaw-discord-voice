@@ -39,6 +39,9 @@ export interface VoiceManagerConfig {
   systemPrompt?: string;
   maxConnections: number;
   logger: Logger;
+  gatewayPort?: number;
+  gatewayAuthToken?: string;
+  guildId?: string;
 }
 
 export interface OpenAISessionConfig {
@@ -58,4 +61,48 @@ export interface OpenAISessionConfig {
 export interface OpenAIMessage {
   type: string;
   [key: string]: unknown;
+}
+
+/**
+ * OpenAI Realtime tool definition (function calling)
+ */
+export interface RealtimeTool {
+  type: 'function';
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+/**
+ * OpenClaw Gateway API client config
+ */
+export interface GatewayConfig {
+  host: string;
+  port: number;
+  authToken: string;
+  logger: Logger;
+}
+
+/**
+ * OpenClaw API reference passed from plugin registration
+ */
+export interface OpenClawAPI {
+  pluginConfig: unknown;
+  logger: Logger;
+  config: {
+    channels?: {
+      discord?: {
+        token?: string;
+        guilds?: Record<string, unknown>;
+      };
+    };
+    providers?: {
+      openai?: {
+        apiKey?: string;
+      };
+    };
+  };
+  registerGatewayMethod?: (name: string, handler: (ctx: any) => Promise<void>) => void;
+  registerChannel?: (name: string, channel: unknown) => void;
+  on?: (event: string, handler: (...args: any[]) => void) => void;
 }

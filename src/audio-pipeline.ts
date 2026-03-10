@@ -8,7 +8,7 @@
  */
 
 import { Transform, Readable } from 'stream';
-import { OpusEncoder } from '@discordjs/opus';
+import OpusScript from 'opusscript';
 import type { Logger } from './types.js';
 
 interface AudioPipelineConfig {
@@ -19,19 +19,16 @@ interface AudioPipelineConfig {
 export class AudioPipeline {
   private config: AudioPipelineConfig;
   private logger: Logger;
-  private opusDecoder: OpusEncoder;
-  private opusEncoder: OpusEncoder;
+  private opusDecoder: any;
   private audioBuffer: Buffer[] = [];
 
   constructor(config: AudioPipelineConfig) {
     this.config = config;
     this.logger = config.logger;
-    
-    // Decoder for incoming Discord audio (48kHz stereo)
-    this.opusDecoder = new OpusEncoder(48000, 2);
-    
-    // Encoder for outgoing audio to Discord (48kHz stereo)
-    this.opusEncoder = new OpusEncoder(48000, 2);
+
+    // Use opusscript (WASM) instead of @discordjs/opus (native C) to avoid segfaults
+    // Native opus crashes in silk_NLSF2A on certain DAVE-decrypted packets
+    this.opusDecoder = new OpusScript(48000, 2, (OpusScript as any).Application.AUDIO);
   }
 
   /**
@@ -85,41 +82,49 @@ export class AudioPipeline {
   /**
    * Convert 24kHz mono PCM16 to Discord format (48kHz stereo PCM16 stream)
    * Returns a Readable stream for createAudioResource
+   * @deprecated Use convertToDiscordBuffer instead
    */
   convertToDiscordFormat(input: Buffer): Readable {
-    // Input: 24kHz mono = 2 bytes per sample
-    // Output: 48kHz stereo = 4 bytes per sample
-    // Ratio: 48k/24k = 2, so we duplicate each sample
-    
-    const inputSamples = input.length / 2;
-    const outputSamples = inputSamples * 2; // upsample by 2
-    const output = Buffer.alloc(outputSamples * 4); // stereo
-    
-    for (let i = 0; i < inputSamples; i++) {
-      const sample = input.readInt16LE(i * 2);
-      
-      // Write twice (upsample) and duplicate to both channels
-      const outIdx1 = i * 2 * 4;
-      const outIdx2 = outIdx1 + 4;
-      
-      // First sample (left, right)
-      output.writeInt16LE(sample, outIdx1);
-      output.writeInt16LE(sample, outIdx1 + 2);
-      
-      // Second sample (interpolated - same for simplicity)
-      output.writeInt16LE(sample, outIdx2);
-      output.writeInt16LE(sample, outIdx2 + 2);
-    }
-    
-    // Return as readable stream
+    const output = this.convertToDiscordBuffer(input);
     const stream = new Readable({
       read() {
         this.push(output);
         this.push(null);
       }
     });
-    
     return stream;
+  }
+
+  /**
+   * Convert 24kHz mono PCM16 to Discord format (48kHz stereo PCM16)
+   * Returns a raw Buffer for writing into a PassThrough stream.
+   */
+  convertToDiscordBuffer(input: Buffer): Buffer {
+    // Input: 24kHz mono = 2 bytes per sample
+    // Output: 48kHz stereo = 4 bytes per sample
+    // Ratio: 48k/24k = 2, so we duplicate each sample
+
+    const inputSamples = input.length / 2;
+    const outputSamples = inputSamples * 2; // upsample by 2
+    const output = Buffer.alloc(outputSamples * 4); // stereo
+
+    for (let i = 0; i < inputSamples; i++) {
+      const sample = input.readInt16LE(i * 2);
+
+      // Write twice (upsample) and duplicate to both channels
+      const outIdx1 = i * 2 * 4;
+      const outIdx2 = outIdx1 + 4;
+
+      // First sample (left, right)
+      output.writeInt16LE(sample, outIdx1);
+      output.writeInt16LE(sample, outIdx1 + 2);
+
+      // Second sample (interpolated - same for simplicity)
+      output.writeInt16LE(sample, outIdx2);
+      output.writeInt16LE(sample, outIdx2 + 2);
+    }
+
+    return output;
   }
 
   /**
